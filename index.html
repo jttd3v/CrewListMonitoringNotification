@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Crew Expiry Report</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-6">
+  <div class="max-w-screen-xl mx-auto bg-white shadow-md rounded-lg p-6">
+    <h1 class="text-2xl font-bold mb-4 text-blue-800">Crew Expiry Report Generator</h1>
+
+    <!-- Email Input -->
+    <label class="block font-medium text-gray-700 mb-1">To be sent to:</label>
+    <input type="email" id="recipientEmail" placeholder="Enter recipient email address" class="border p-2 rounded w-full mb-4">
+
+    <!-- Paste Box -->
+    <label class="block font-medium text-gray-700 mb-1">Paste Excel Data Here:</label>
+    <textarea id="excelData" placeholder="Copy rows from Excel and paste here" rows="8" class="border p-2 rounded w-full mb-4"></textarea>
+
+    <button onclick="generateReport()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded mb-4">Generate Report</button>
+
+    <!-- Preview Area -->
+    <div id="preview" class="overflow-x-auto mt-4 border rounded p-4 bg-white shadow-inner"></div>
+
+    <!-- Copy Button -->
+    <button onclick="copyToClipboard()" class="mt-4 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded">Copy HTML to Clipboard</button>
+  </div>
+
+  <script>
+    function daysUntil(dateStr) {
+      const today = new Date();
+      const target = new Date(dateStr);
+      const diffTime = target - today;
+      return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    }
+
+    function colorForDays(days) {
+      if (days < 30) return 'bg-red-100';
+      if (days < 60) return 'bg-orange-100';
+      if (days < 90) return 'bg-yellow-100';
+      return 'bg-green-100';
+    }
+
+    function generateReport() {
+      const raw = document.getElementById('excelData').value.trim();
+      const lines = raw.split('\n').filter(l => l.trim());
+      const preview = document.getElementById('preview');
+      if (!lines.length) return;
+
+      // Header from the prompt
+      const headers = [
+        "VesselName", "No.", "Family, Given, M.I.", "Rank", "Date of Birth",
+        "Embarked Onboard", "Expiry of Original Contract", "Expiry of Extension Contract",
+        "Passport Expiry", "SIRB Expiry", "U.S. Visa Expiry", "AMCV Expiry", "SID Expiry",
+        "Country COC/COE Expiry", "Flag State COC/COE Expiry", "GMDSS License Expiry",
+        "Medical Expiry", "COVID-19 Vaccination Date", "LastChange", "WhatChanged"
+      ];
+
+      // Expiry columns to apply logic
+      const expiryCols = [
+        "Expiry of Original Contract", "Expiry of Extension Contract", "Passport Expiry", "SIRB Expiry",
+        "U.S. Visa Expiry", "AMCV Expiry", "SID Expiry", "Country COC/COE Expiry", 
+        "Flag State COC/COE Expiry", "GMDSS License Expiry", "Medical Expiry"
+      ];
+
+      let html = '<table class="min-w-full text-sm text-left border border-collapse">';
+      html += '<thead><tr class="bg-blue-100">';
+      headers.forEach(h => html += `<th class="border px-2 py-1">${h}</th>`);
+      html += '</tr></thead><tbody>';
+
+      for (let row of lines) {
+        const cells = row.split('\t');
+        html += '<tr>';
+        for (let i = 0; i < headers.length; i++) {
+          const value = cells[i] || '';
+          const isExpiry = expiryCols.includes(headers[i]);
+          let className = 'border px-2 py-1';
+          if (isExpiry && value.match(/^\d{4}-\d{2}-\d{2}$/)) {
+            const days = daysUntil(value);
+            className += ' ' + colorForDays(days);
+          }
+          html += `<td class="${className}">${value}</td>`;
+        }
+        html += '</tr>';
+      }
+      html += '</tbody></table>';
+      preview.innerHTML = html;
+    }
+
+    function copyToClipboard() {
+      const content = document.getElementById('preview').innerHTML;
+      const wrapper = `
+        <div style="font-family:sans-serif;">
+          <h2 style="color:#1d4ed8;">Crew Expiry Report</h2>
+          <p><strong>To:</strong> ${document.getElementById('recipientEmail').value}</p>
+          ${content}
+        </div>`;
+      navigator.clipboard.writeText(wrapper).then(() => {
+        alert("HTML copied! Paste it into Gmail.");
+      });
+    }
+  </script>
+</body>
+</html>
