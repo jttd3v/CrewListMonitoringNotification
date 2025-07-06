@@ -2,103 +2,298 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Crew Expiry Report</title>
+  <title>Crew Expiry Report - Input Paste Grid</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-100 p-6">
-  <div class="max-w-screen-xl mx-auto bg-white shadow-md rounded-lg p-6">
-    <h1 class="text-2xl font-bold mb-4 text-blue-800">Crew Expiry Report Generator</h1>
+<style>
+table, th, td {
+    border-color: #cbd5e0 !important; /* Tailwind gray-300 */
+  }
+  input::placeholder {
+    color: #a0aec0; /* gray-400 */
+  }
+</style>
+<body class="bg-white p-2">
+  <div class="w-full bg-white shadow-md rounded-lg p-6">
+    <h1 class="text-2xl font-bold mb-4 text-blue-800">Crew Expiry Report Generator (Input Paste Version)</h1>
 
     <!-- Email Input -->
     <label class="block font-medium text-gray-700 mb-1">To be sent to:</label>
     <input type="email" id="recipientEmail" placeholder="Enter recipient email address" class="border p-2 rounded w-full mb-4">
 
-    <!-- Paste Box -->
-    <label class="block font-medium text-gray-700 mb-1">Paste Excel Data Here:</label>
-    <textarea id="excelData" placeholder="Copy rows from Excel and paste here" rows="8" class="border p-2 rounded w-full mb-4"></textarea>
+<!-- Step 1: Make the outer container scrollable if content exceeds width -->
+<div class="w-full overflow-x-auto" style="max-width: 100vw;">
+<!-- Search Filters -->
+<div class="mb-4 flex gap-4 flex-wrap">
+  <input type="text" id="searchVessel" placeholder="Search Vessel Name..." class="border p-2 rounded w-64">
+  <input type="text" id="searchExpiry" placeholder="Search Expiry Status (e.g. 2025-07)" class="border p-2 rounded w-64">
+</div>
 
-    <button onclick="generateReport()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded mb-4">Generate Report</button>
+  <!-- Step 2: Force the table to grow beyond screen if needed -->
+  <table id="crewTable" class="text-sm border border-collapse min-w-[1500px]">
+        <thead>
+          <tr class="bg-blue-100 text-left">
+            	<th class="border px-2 py-1" style="width: 7%;" onclick="sortTableByColumn(0)">VesselName ▲▼</th>
+		<th class="border px-2 py-1" style="width: 3%;">No.</th>
+		<th class="border px-2 py-1" style="width: 15%;">Family, Given, M.I.</th>
+		<th class="border px-2 py-1" style="width: 8%;" onclick="sortTableByColumn(1)">Rank ▲▼</th>
+		<th class="border px-2 py-1" style="width: 8%;">Date of Birth</th>
+		<th class="border px-2 py-1" style="width: 8%;" onclick="sortTableByColumn(2)">Embarked Onboard ▲▼</th>
+		<th class="border px-2 py-1" style="width: 10%;" onclick="sortTableByColumn(3)">Original Contract Expiry ▲▼</th>
+		<th class="border px-2 py-1" style="width: 10%;" onclick="sortTableByColumn(4)">Extension Contract Expiry ▲▼</th>
+		<th class="border px-2 py-1" style="width: 8%;" onclick="sortTableByColumn(5)">Passport Expiry ▲▼</th>
+		<th class="border px-2 py-1" style="width: 8%;" onclick="sortTableByColumn(6)">SIRB Expiry ▲▼</th>
+		<th class="border px-2 py-1" style="width: 8%;" onclick="sortTableByColumn(7)">US Visa Expiry ▲▼</th>
+		<th class="border border-gray-300 px-2 py-1 bg-blue-100 text-sm font-semibold text-gray-800" style="width: 8%;" onclick="sortTableByColumn(8)">Medical Expiry ▲▼</th>
+		<th class="border px-2 py-1" style="width: 8%;" onclick="sortTableByColumn(9)">COVID-19 Vax Date ▲▼</th>
+		<th class="border px-2 py-1" style="width: 8%;" onclick="sortTableByColumn(10)">SID Expiry ▲▼</th>
+		<th class="border px-2 py-1" style="width: 8%;" onclick="sortTableByColumn(11)">Flag COC Expiry ▲▼</th>
+		<th class="border border-gray-300 px-2 py-1 bg-blue-100 text-sm font-semibold text-gray-800" style="width: 15%;" onclick="sortTableByColumn(12)">Country COC Expiry ▲▼</th>
+		</tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
 
-    <!-- Preview Area -->
-    <div id="preview" class="overflow-x-auto mt-4 border rounded p-4 bg-white shadow-inner"></div>
-
-    <!-- Copy Button -->
-    <button onclick="copyToClipboard()" class="mt-4 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded">Copy HTML to Clipboard</button>
+    <button onclick="copyToClipboard()" class="mt-6 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded">Copy HTML to Clipboard</button>
   </div>
 
   <script>
+let sortState = {};
+
+function sortTableByColumn(colIndex) {
+  const tbody = document.getElementById('tableBody');
+  const rowsArray = Array.from(tbody.querySelectorAll('tr'));
+
+  // Toggle sort direction
+  sortState[colIndex] = !sortState[colIndex];
+  const direction = sortState[colIndex] ? 1 : -1;
+
+  rowsArray.sort((a, b) => {
+    const valA = a.querySelector(`input[data-c="${colIndex}"]`)?.value.trim().toLowerCase() || '';
+    const valB = b.querySelector(`input[data-c="${colIndex}"]`)?.value.trim().toLowerCase() || '';
+
+    // Try to sort as number or date if possible
+    if (!isNaN(valA) && !isNaN(valB)) {
+      return (parseFloat(valA) - parseFloat(valB)) * direction;
+    } else if (Date.parse(valA) && Date.parse(valB)) {
+      return (new Date(valA) - new Date(valB)) * direction;
+    }
+
+    // Default to string sort
+    return valA.localeCompare(valB) * direction;
+  });
+
+  // Clear old table and reinsert sorted rows
+  tbody.innerHTML = '';
+  rowsArray.forEach(row => tbody.appendChild(row));
+}
+
+
+// --- SEARCH FILTER FUNCTIONALITY ---
+
+function applyFilters() {
+  const vesselQuery = document.getElementById('searchVessel').value.toLowerCase();
+  const expiryQuery = document.getElementById('searchExpiry').value.toLowerCase();
+
+  const rows = document.querySelectorAll('#crewTable tbody tr');
+
+  rows.forEach(row => {
+    let show = true;
+
+    // Check VesselName (column 0)
+    const vesselInput = row.querySelector('input[data-c="0"]');
+    if (vesselInput && !vesselInput.value.toLowerCase().includes(vesselQuery)) {
+      show = false;
+    }
+
+    // Check all expiry fields
+    const expiryCols = [6, 7, 8, 9, 10, 11, 13, 14, 15];
+    if (expiryQuery) {
+      let expiryMatch = false;
+      expiryCols.forEach(col => {
+        const cell = row.querySelector(`input[data-c="${col}"]`);
+        if (cell && cell.value.toLowerCase().includes(expiryQuery)) {
+          expiryMatch = true;
+        }
+      });
+      if (!expiryMatch) show = false;
+    }
+
+    row.style.display = show ? '' : 'none';
+  });
+}
+
+// Attach listeners to search inputs
+document.getElementById('searchVessel').addEventListener('input', applyFilters);
+document.getElementById('searchExpiry').addEventListener('input', applyFilters);
+
+// Column indexes with expiry dates to apply conditional formatting (0-based index)
+    const expiryColumns = [6, 7, 8, 9, 10, 11, 13, 14, 15];
+
     function daysUntil(dateStr) {
       const today = new Date();
       const target = new Date(dateStr);
-      const diffTime = target - today;
-      return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      return Math.ceil((target - today) / (1000 * 60 * 60 * 24));
     }
 
-    function colorForDays(days) {
-      if (days < 30) return 'bg-red-100';
-      if (days < 60) return 'bg-orange-100';
-      if (days < 90) return 'bg-yellow-100';
-      return 'bg-green-100';
+    function inlineBgColor(days) {
+      if (days < 30) return '#fee2e2';
+      if (days < 60) return '#ffedd5';
+      if (days < 90) return '#fef9c3';
+      return '#dcfce7';
     }
 
-    function generateReport() {
-      const raw = document.getElementById('excelData').value.trim();
-      const lines = raw.split('\n').filter(l => l.trim());
-      const preview = document.getElementById('preview');
-      if (!lines.length) return;
-
-      // Header from the prompt
-      const headers = [
-        "VesselName", "No.", "Family, Given, M.I.", "Rank", "Date of Birth",
-        "Embarked Onboard", "Expiry of Original Contract", "Expiry of Extension Contract",
-        "Passport Expiry", "SIRB Expiry", "U.S. Visa Expiry", "AMCV Expiry", "SID Expiry",
-        "Country COC/COE Expiry", "Flag State COC/COE Expiry", "GMDSS License Expiry",
-        "Medical Expiry", "COVID-19 Vaccination Date", "LastChange", "WhatChanged"
-      ];
-
-      // Expiry columns to apply logic
-      const expiryCols = [
-        "Expiry of Original Contract", "Expiry of Extension Contract", "Passport Expiry", "SIRB Expiry",
-        "U.S. Visa Expiry", "AMCV Expiry", "SID Expiry", "Country COC/COE Expiry", 
-        "Flag State COC/COE Expiry", "GMDSS License Expiry", "Medical Expiry"
-      ];
-
-      let html = '<table class="min-w-full text-sm text-left border border-collapse">';
-      html += '<thead><tr class="bg-blue-100">';
-      headers.forEach(h => html += `<th class="border px-2 py-1">${h}</th>`);
-      html += '</tr></thead><tbody>';
-
-      for (let row of lines) {
-        const cells = row.split('\t');
-        html += '<tr>';
-        for (let i = 0; i < headers.length; i++) {
-          const value = cells[i] || '';
-          const isExpiry = expiryCols.includes(headers[i]);
-          let className = 'border px-2 py-1';
-          if (isExpiry && value.match(/^\d{4}-\d{2}-\d{2}$/)) {
-            const days = daysUntil(value);
-            className += ' ' + colorForDays(days);
-          }
-          html += `<td class="${className}">${value}</td>`;
-        }
-        html += '</tr>';
+    function convertToISO(input) {
+      const monthMap = {
+        Jan: '01', Feb: '02', Mar: '03', Apr: '04', May: '05', Jun: '06',
+        Jul: '07', Aug: '08', Sep: '09', Oct: '10', Nov: '11', Dec: '12'
+      };
+      const match = input.match(/(\d{1,2})[-\s]([A-Za-z]{3})[-\s]?(\d{2,4})/);
+      if (match) {
+        const d = match[1].padStart(2, '0');
+        const m = monthMap[match[2]];
+        const y = match[3].length === 2 ? '20' + match[3] : match[3];
+        return `${y}-${m}-${d}`;
       }
-      html += '</tbody></table>';
-      preview.innerHTML = html;
+      return input;
     }
+
+    const tbody = document.getElementById('tableBody');
+    for (let r = 0; r < 22; r++) {
+      const tr = document.createElement('tr');
+      for (let c = 0; c < 16; c++) {
+        const td = document.createElement('td');
+        td.className = "border px-2 py-1 whitespace-pre-wrap break-words align-top";
+        const input = document.createElement('input');
+        input.className = "cell w-full px-2 py-1 text-sm text-gray-800 border-0 focus:outline-none";
+        input.setAttribute('data-r', r);
+        input.setAttribute('data-c', c);
+        input.addEventListener('input', () => {
+          let val = input.value.trim();
+          if (expiryColumns.includes(c)) {
+            val = convertToISO(val);
+            input.value = val;
+            if (/^\d{4}-\d{2}-\d{2}$/.test(val)) {
+              const days = daysUntil(val);
+              input.style.backgroundColor = inlineBgColor(days);
+            } else {
+              input.style.backgroundColor = '';
+            }
+          } else {
+            input.style.backgroundColor = '';
+          }
+        });
+        td.appendChild(input);
+        tr.appendChild(td);
+      }
+      tbody.appendChild(tr);
+    }
+
+    const table = document.getElementById('crewTable');
+    table.addEventListener('paste', evt => {
+      const act = document.activeElement;
+      if (!act.classList.contains('cell')) return;
+      evt.preventDefault();
+      const r0 = +act.dataset.r, c0 = +act.dataset.c;
+      const clip = (evt.clipboardData || window.clipboardData).getData('text');
+      clip.split(/\r?\n/).forEach((line, ri) => {
+        if (!line.trim()) return;
+        line.split(/\t/).forEach((val, ci) => {
+          const tgt = table.querySelector(`input[data-r="${r0 + ri}"][data-c="${c0 + ci}"]`);
+          if (tgt && !tgt.readOnly) {
+            const cleaned = convertToISO(val.trim());
+            tgt.value = cleaned;
+            tgt.dispatchEvent(new Event('input', { bubbles: true }));
+          }
+        });
+      });
+    });
 
     function copyToClipboard() {
-      const content = document.getElementById('preview').innerHTML;
-      const wrapper = `
+      const tableHTML = document.getElementById("crewTable").outerHTML;
+      const email = document.getElementById("recipientEmail").value || '[Not provided]';
+      const fullHTML = `
         <div style="font-family:sans-serif;">
           <h2 style="color:#1d4ed8;">Crew Expiry Report</h2>
-          <p><strong>To:</strong> ${document.getElementById('recipientEmail').value}</p>
-          ${content}
-        </div>`;
-      navigator.clipboard.writeText(wrapper).then(() => {
-        alert("HTML copied! Paste it into Gmail.");
+          <p><strong>To:</strong> ${email}</p>
+          ${tableHTML}
+        </div>
+      `;
+      const type = "text/html";
+      const blob = new Blob([fullHTML], { type });
+      const data = [new ClipboardItem({ [type]: blob })];
+      navigator.clipboard.write(data).then(() => {
+        alert("✅ Rich HTML copied. Paste into Gmail or Outlook.");
       });
     }
+
+// --- UNDO/REDO Functionality ---
+
+let historyStack = [];
+let redoStack = [];
+let isTyping = false;
+
+// Monitor changes to inputs and record them
+document.querySelectorAll('.cell').forEach(input => {
+  input.addEventListener('input', (e) => {
+    if (!isTyping) return;
+    historyStack.push({
+      r: input.dataset.r,
+      c: input.dataset.c,
+      value: e.target.value
+    });
+    redoStack = []; // clear redo stack
+  });
+
+  input.addEventListener('focus', () => {
+    isTyping = true;
+  });
+
+  input.addEventListener('blur', () => {
+    isTyping = false;
+  });
+});
+
+// Handle keyboard shortcuts
+document.addEventListener('keydown', (e) => {
+  if (e.ctrlKey && e.key === 'z') {
+    e.preventDefault();
+    const last = historyStack.pop();
+    if (last) {
+      const input = document.querySelector(`input[data-r="${last.r}"][data-c="${last.c}"]`);
+      if (input) {
+        redoStack.push({
+          r: last.r,
+          c: last.c,
+          value: input.value
+        });
+        input.value = last.value;
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.focus();
+      }
+    }
+  }
+
+  if (e.ctrlKey && e.key === 'y') {
+    e.preventDefault();
+    const redo = redoStack.pop();
+    if (redo) {
+      const input = document.querySelector(`input[data-r="${redo.r}"][data-c="${redo.c}"]`);
+      if (input) {
+        historyStack.push({
+          r: redo.r,
+          c: redo.c,
+          value: input.value
+        });
+        input.value = redo.value;
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.focus();
+      }
+    }
+  }
+});
+
   </script>
 </body>
 </html>
